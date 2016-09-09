@@ -32,6 +32,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_HMC5883_U.h>
+#include <QuickStats.h>
 
 /* Assign a unique ID to this sensor at the same time */
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
@@ -39,7 +40,9 @@ int contador = 0;
 int error = 2;
 int rumbo = 43;
 float declinationAngle = 0.68;
-int maxMuestreo = 20;
+const int MAXMUESTREO = 20;
+float muestras[MAXMUESTREO];
+QuickStats stats;
 
 void displaySensorDetails(void)
 {
@@ -79,10 +82,8 @@ void loop(void)
   
   if(contador > 30)
   {
-    int contadorPromedio = 0;
-    float promedio = 0;
-    float sumaPromedio = 0;
-    while (contadorPromedio < maxMuestreo)
+    int i = 0;
+    while (i < MAXMUESTREO)
     {
       /* Get a new sensor event */ 
       sensors_event_t event; 
@@ -99,14 +100,15 @@ void loop(void)
        
       // Convert radians to degrees for readability.
       float rumboActual = heading * 180/M_PI;
-      sumaPromedio = sumaPromedio + rumboActual;
-      contadorPromedio = contadorPromedio + 1;
+      
+      muestras[i] = rumboActual;
+      i++;
     }
 
-    promedio = sumaPromedio / contadorPromedio;
-    //Serial.print("Millis: "); Serial.println(millis());
+    float moda = stats.mode(muestras,MAXMUESTREO);
 
-    float desvio = rumbo - promedio;
+
+    float desvio = rumbo - moda;
     float moduloDesvio = abs(desvio);
 
     if (moduloDesvio < error)
@@ -115,11 +117,36 @@ void loop(void)
     }
     else
     {
-      Serial.println("Hay que corregir el curso");
+      if (moduloDesvio < 180)
+      {
+        Serial.print("Hay que corregir el curso en "); Serial.print(moduloDesvio); Serial.print(" grados ");
+        if (desvio > 0)
+        {
+          Serial.println("a la derecha");
+        }
+        else
+        {
+          Serial.println("a la izquierda");
+        }
+      }
+      else
+      {
+        float desvioComplementario = 360 - moduloDesvio;
+        Serial.print("Hay que corregir el curso en "); Serial.print(desvioComplementario); Serial.print(" grados ");
+        if (desvio < 0)
+        {
+          Serial.println("a la derecha");
+        }
+        else
+        {
+          Serial.println("a la izquierda");
+        }
+      }
+      
     }
     
-    Serial.print("Rumbo (grados): "); Serial.println(promedio);
-    Serial.print("Desvio (grados): "); Serial.println(desvio);
+    Serial.print("Rumbo (grados): "); Serial.println(moda);
+    //Serial.print("Desvio (grados): "); Serial.println(desvio);
     delay(1000);
     
   }
