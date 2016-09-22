@@ -1,31 +1,27 @@
 /***************************************************************************
-  This is a library example for the HMC5883 magnentometer/compass
+1. Establecer un rumbo en grados respecto del Norte magnético y mientras
 
-  Designed specifically to work with the Adafruit HMC5883 Breakout
-  http://www.adafruit.com/products/1746
- 
-  *** You will also need to install the Adafruit_Sensor library! ***
+esté en modo de navegación mantenga ese rumbo.
 
-  These displays use I2C to communicate, 2 pins are required to interface.
+2. En caso de salirse del rumbo indicar hacia donde debe moverse para
 
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit andopen-source hardware by purchasing products
-  from Adafruit!
+corregir el rumbo.
 
-  Written by Kevin Townsend for Adafruit Industries with some heading example from
-  Love Electronics (loveelectronics.co.uk)
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the version 3 GNU General Public License as
- published by the Free Software Foundation.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+3. Que permita establecer un plan de navegación con rumbos y tiempos.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+Ejemplo: 30º/10 segundos, -60º/15 segundos y 90º/5 segundos. Además,
+
+debe cumplir con el punto anterior de mantener el rumbo y avisar en
+
+caso de salirse.
+
+4. Indicar de manera visual proporcionalmente dependiendo de cuán lejos
+
+esté del rumbo. Si está muy lejos, que la indicación sea más acentuada.
+
+5. Comunicar la corrección que debe hacer mediante algún enlace hacia el
+
+exterior del sistema.
 
  ***************************************************************************/
 
@@ -43,6 +39,10 @@ float declinationAngle = 0.68;
 const int MAXMUESTREO = 20;
 float muestras[MAXMUESTREO];
 QuickStats stats;
+int rumbosDeNavegacion[3]={43,70,180};
+int tiemposDeNavegacion[3]={10,20,30};
+boolean finalizado=false;
+
 
 void displaySensorDetails(void)
 {
@@ -62,26 +62,37 @@ void displaySensorDetails(void)
 
 void setup(void) 
 {
+  /* Configuramos los puertos digitales 2 y 4 como salidas */
+  pinMode(2, OUTPUT);
+  pinMode(4, OUTPUT);
+
+  /* Inicializamos el puerto serial */
   Serial.begin(9600);
-  Serial.println("HMC5883 Magnetometer Test"); Serial.println("");
+  Serial.println("Trabajo Practico - Sistema de Navegacion");Serial.println("");  
   
-  /* Initialise the sensor */
+  /* Inicializamos el sensor */
   if(!mag.begin())
   {
     /* There was a problem detecting the HMC5883 ... check your connections */
     Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
     while(1);
   }
-  
-  /* Display some basic information on this sensor */
-  //displaySensorDetails();
 }
 
-void loop(void) 
-{
+void encenderLed(int salidaAnalogica){
   
-  if(contador > 30)
-  {
+  digitalWrite(salidaAnalogica, HIGH);
+  
+}
+
+void apagarLed(int salidaAnalogica){
+  
+  digitalWrite(salidaAnalogica, LOW);
+  
+}
+
+void navegar(int rumbo){
+    
     int i = 0;
     while (i < MAXMUESTREO)
     {
@@ -114,6 +125,8 @@ void loop(void)
     if (moduloDesvio < error)
     {
       Serial.println("Estamos en curso");
+      apagarLed(2);
+      apagarLed(4);
     }
     else
     {
@@ -123,10 +136,12 @@ void loop(void)
         if (desvio > 0)
         {
           Serial.println("a la derecha");
+          encenderLed(2);
         }
         else
         {
           Serial.println("a la izquierda");
+          encenderLed(4);
         }
       }
       else
@@ -136,10 +151,12 @@ void loop(void)
         if (desvio < 0)
         {
           Serial.println("a la derecha");
+          encenderLed(2);
         }
         else
         {
           Serial.println("a la izquierda");
+          encenderLed(4);
         }
       }
       
@@ -148,7 +165,36 @@ void loop(void)
     Serial.print("Rumbo (grados): "); Serial.println(moda);
     //Serial.print("Desvio (grados): "); Serial.println(desvio);
     delay(1000);
-    
+   
+}
+
+void navegarConPlanDeNavegacion(int rumbosDeNavegacion[3], int tiemposDeNavegacion[3]){
+  
+  for (int i = 0; i<3; i++){
+    int contadorDeNavegacion = 0;
+    Serial.println("---------------------------------------------------------");
+    Serial.print("Navegando con rumbo: "); Serial.print(rumbosDeNavegacion[i]); Serial.print(" grados");Serial.print(" Tiempo: "); Serial.print(tiemposDeNavegacion[i]); Serial.print(" segundos");Serial.println("");
+    Serial.println("---------------------------------------------------------");
+    while (contadorDeNavegacion < tiemposDeNavegacion[i]){
+      navegar(rumbosDeNavegacion[i]);
+      contadorDeNavegacion++;
+    }
+  }
+  Serial.println("-----------------------------");
+  Serial.println("Plan de Navegacion Finalizado");
+  Serial.println("-----------------------------");
+  finalizado=true;
+}
+
+void loop(void) 
+{
+  
+  if(contador > 30)
+  {
+    if (finalizado==false){
+      navegarConPlanDeNavegacion(rumbosDeNavegacion,tiemposDeNavegacion);
+    }
   }
   contador = contador +1;
+  
 }
