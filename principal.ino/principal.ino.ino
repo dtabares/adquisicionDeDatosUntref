@@ -39,9 +39,10 @@ float declinationAngle = 0.68;
 const int MAXMUESTREO = 20;
 float muestras[MAXMUESTREO];
 QuickStats stats;
-int rumbosDeNavegacion[3]={43,70,180};
+int rumbosDeNavegacion[3]={43,70,0};
 int tiemposDeNavegacion[3]={10,20,30};
-boolean finalizado=false;
+boolean finalizado = false;
+boolean enCurso;
 
 
 void displaySensorDetails(void)
@@ -125,11 +126,13 @@ void navegar(int rumbo){
     if (moduloDesvio < error)
     {
       Serial.println("Estamos en curso");
+      enCurso = true;
       apagarLed(2);
       apagarLed(4);
     }
     else
     {
+      enCurso = false;
       if (moduloDesvio < 180)
       {
         Serial.print("Hay que corregir el curso en "); Serial.print(moduloDesvio); Serial.print(" grados ");
@@ -172,12 +175,22 @@ void navegarConPlanDeNavegacion(int rumbosDeNavegacion[3], int tiemposDeNavegaci
   
   for (int i = 0; i<3; i++){
     int contadorDeNavegacion = 0;
+    unsigned long tiempoDeNavegacionEnMilliSegundos = tiemposDeNavegacion[i]*1000;
+    unsigned long tiempoEnCurso = 0;
+    unsigned long tiempoInicial;
+    unsigned long tiempoFinal;
     Serial.println("---------------------------------------------------------");
-    Serial.print("Navegando con rumbo: "); Serial.print(rumbosDeNavegacion[i]); Serial.print(" grados");Serial.print(" Tiempo: "); Serial.print(tiemposDeNavegacion[i]); Serial.print(" segundos");Serial.println("");
+    Serial.print("Navegando con rumbo: "); Serial.print(rumbosDeNavegacion[i]); Serial.print(" grados");Serial.print(" Tiempo: "); Serial.print(tiemposDeNavegacion[i]); Serial.println(" segundos");
     Serial.println("---------------------------------------------------------");
-    while (contadorDeNavegacion < tiemposDeNavegacion[i]){
+    while (tiempoEnCurso < tiempoDeNavegacionEnMilliSegundos){
+      tiempoInicial = millis();
       navegar(rumbosDeNavegacion[i]);
-      contadorDeNavegacion++;
+      tiempoFinal = millis();
+      if (enCurso == true)
+      {
+        tiempoEnCurso = tiempoEnCurso + (tiempoFinal - tiempoInicial);
+        Serial.print("Tiempo en curso: "); Serial.print(tiempoEnCurso / 1000); Serial.print(" segundos"); Serial.print(" de un total de  ");Serial.print(tiemposDeNavegacion[i]); Serial.println(" segundos");
+      }
     }
   }
   Serial.println("-----------------------------");
